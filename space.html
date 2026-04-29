@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Space Galaxy Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial; }
+        .ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; color: #00f2ff; z-index: 10; pointer-events: none; }
+        .box { background: rgba(0, 0, 50, 0.7); padding: 10px 20px; border: 2px solid #00f2ff; border-radius: 10px; font-weight: bold; font-size: 20px; }
+        #win-screen { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: rgba(0,0,0,0.9); color: gold; padding: 40px; border: 5px solid gold; 
+            text-align: center; display: none; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div id="win-screen">
+    <h1>MISSION ACCOMPLISHED!</h1>
+    <p>ਤੁਸੀਂ ਗਲੈਕਸੀ ਨੂੰ ਬਚਾ ਲਿਆ ਹੈ!</p>
+    <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer; background:gold; border:none; font-weight:bold;">ਦੁਬਾਰਾ ਖੇਡੋ</button>
+</div>
+
+<div class="ui">
+    <div class="box">ENEMIES KILLED: <span id="score">0</span> / 15</div>
+    <div class="box">SHIP HEALTH: <span id="hp">100</span>%</div>
+</div>
+
+<script>
+    let scene, camera, renderer, spaceship;
+    let bullets = [], enemies = [], stars = [];
+    let score = 0, hp = 100, gameActive = true;
+    let keys = { a: false, d: false, w: false, s: false };
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0x404040));
+        let light = new THREE.PointLight(0x00f2ff, 2, 50);
+        scene.add(light);
+
+        // Spaceship (Player)
+        let shipGeo = new THREE.ConeGeometry(0.5, 1.5, 8);
+        let shipMat = new THREE.MeshPhongMaterial({ color: 0x00f2ff });
+        spaceship = new THREE.Mesh(shipGeo, shipMat);
+        spaceship.rotation.x = Math.PI / 2;
+        scene.add(spaceship);
+
+        camera.position.z = 10;
+        camera.position.y = 5;
+
+        // Stars Background
+        for(let i=0; i<200; i++) {
+            let star = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            star.position.set((Math.random()-0.5)*50, (Math.random()-0.5)*50, (Math.random()-0.5)*100);
+            scene.add(star);
+            stars.push(star);
+        }
+
+        window.onkeydown = (e) => {
+            if(e.key === ' ' && gameActive) shoot();
+            keys[e.key.toLowerCase()] = true;
+        };
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        animate();
+    }
+
+    function shoot() {
+        let b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.5), new THREE.MeshBasicMaterial({color: 0xff0000}));
+        b.position.copy(spaceship.position);
+        scene.add(b);
+        bullets.push(b);
+    }
+
+    function spawnEnemy() {
+        if(Math.random() < 0.03 && gameActive) {
+            let enemy = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.2, 8, 24), new THREE.MeshPhongMaterial({color: 0xff00ff}));
+            enemy.position.set((Math.random()-0.5)*20, (Math.random()-0.5)*10, -50);
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+    }
+
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Movement
+        if(keys.a) spaceship.position.x -= 0.15;
+        if(keys.d) spaceship.position.x += 0.15;
+        if(keys.w) spaceship.position.y += 0.15;
+        if(keys.s) spaceship.position.y -= 0.15;
+
+        camera.position.x = spaceship.position.x * 0.5;
+        camera.lookAt(spaceship.position);
+
+        spawnEnemy();
+
+        // Bullet Logic
+        bullets.forEach((b, bi) => {
+            b.position.z -= 0.5;
+            if(b.position.z < -60) { scene.remove(b); bullets.splice(bi, 1); }
+            
+            enemies.forEach((e, ei) => {
+                if(b.position.distanceTo(e.position) < 1.2) {
+                    scene.remove(e); enemies.splice(ei, 1);
+                    scene.remove(b); bullets.splice(bi, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    if(score >= 15) {
+                        gameActive = false;
+                        document.getElementById('win-screen').style.display = 'block';
+                    }
+                }
+            });
+        });
+
+        // Enemy Logic
+        enemies.forEach((e, ei) => {
+            e.position.z += 0.2;
+            e.rotation.y += 0.05;
+            if(e.position.distanceTo(spaceship.position) < 1.5) {
+                scene.remove(e); enemies.splice(ei, 1);
+                hp -= 20;
+                document.getElementById('hp').innerText = hp;
+                if(hp <= 0) { alert("Ship Destroyed! Mission Failed."); location.reload(); }
+            }
+        });
+
+        // Star Motion
+        stars.forEach(s => {
+            s.position.z += 0.1;
+            if(s.position.z > 10) s.position.z = -90;
+        });
+
+        renderer.render(scene, camera);
+    }
+    init();
+</script>
+</body>
+</html>

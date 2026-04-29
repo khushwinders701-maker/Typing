@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Dino Run - Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; font-family: 'Courier New', Courier, monospace; }
+        #ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; color: #fff; z-index: 10; pointer-events: none; }
+        .box { background: rgba(255, 255, 255, 0.1); padding: 10px 20px; border: 2px solid #555; border-radius: 5px; font-size: 24px; }
+        #mission-text { position: absolute; bottom: 20px; width: 100%; text-align: center; color: #888; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div class="box">SCORE: <span id="score">0</span> / 1000</div>
+    <div class="box">MISSION: SURVIVE THE NIGHT</div>
+</div>
+<div id="mission-text">Press SPACE to JUMP | Avoid the Red Obstacles</div>
+
+<script>
+    let scene, camera, renderer, dino;
+    let obstacles = [];
+    let score = 0, gameActive = true;
+    let isJumping = false, velocityY = 0;
+    const gravity = -0.015;
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.Fog(0x050505, 10, 30);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ground
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100), 
+            new THREE.MeshBasicMaterial({ color: 0x222222 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Dino (Simple Box Character)
+        dino = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 1.5, 1), 
+            new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        );
+        dino.position.y = 0.75;
+        scene.add(dino);
+
+        camera.position.set(5, 4, 10);
+        camera.lookAt(0, 1, 0);
+
+        // Controls
+        window.addEventListener('keydown', (e) => {
+            if ((e.key === ' ' || e.key === 'w' || e.key === 'ArrowUp') && !isJumping && gameActive) {
+                velocityY = 0.3;
+                isJumping = true;
+            }
+        });
+
+        animate();
+    }
+
+    function spawnObstacle() {
+        if (Math.random() < 0.02 && gameActive) {
+            const obs = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 1 + Math.random() * 1.5, 0.5), 
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            obs.position.set(-15, obs.geometry.parameters.height / 2, 0);
+            scene.add(obs);
+            obstacles.push(obs);
+        }
+    }
+
+    function animate() {
+        if (!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Jump Physics
+        if (isJumping) {
+            dino.position.y += velocityY;
+            velocityY += gravity;
+            if (dino.position.y <= 0.75) {
+                dino.position.y = 0.75;
+                isJumping = false;
+            }
+        }
+
+        spawnObstacle();
+
+        // Move obstacles and check collisions
+        obstacles.forEach((obs, i) => {
+            obs.position.x += 0.2; // Obstacles move towards right
+
+            // Collision check
+            if (obs.position.x > -0.5 && obs.position.x < 0.5 && dino.position.y < (obs.geometry.parameters.height + 0.5)) {
+                gameActive = false;
+                alert("MISSION FAILED: ਕੈਕਟਸ ਨਾਲ ਟੱਕਰ ਹੋ ਗਈ! ਸਕੋਰ: " + Math.floor(score));
+                location.reload();
+            }
+
+            // Remove off-screen obstacles
+            if (obs.position.x > 10) {
+                scene.remove(obs);
+                obstacles.splice(i, 1);
+            }
+        });
+
+        score += 0.5;
+        document.getElementById('score').innerText = Math.floor(score);
+
+        if (score >= 1000) {
+            gameActive = false;
+            alert("MISSION ACCOMPLISHED: ਤੁਸੀਂ ਰਾਤ ਦਾ ਸਫ਼ਰ ਤੈਅ ਕਰ ਲਿਆ ਹੈ!");
+            location.reload();
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
+</body>
+</html>

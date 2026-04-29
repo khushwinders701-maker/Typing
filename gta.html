@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 GTA City Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #333; font-family: Arial; }
+        #ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; color: #fff; z-index: 10; pointer-events: none; }
+        .box { background: rgba(0, 0, 0, 0.8); padding: 10px 20px; border: 2px solid #00aaff; border-radius: 5px; font-weight: bold; }
+        #map-hint { position: absolute; bottom: 20px; left: 20px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div class="box">CASES FOUND: <span id="score">0</span> / 5</div>
+    <div class="box">MISSION: CITY EXPLORER</div>
+</div>
+<div id="map-hint">WASD to Drive | Space to Brake</div>
+
+<script>
+    let scene, camera, renderer, car;
+    let items = [];
+    let score = 0, gameActive = true;
+    let keys = { w: false, s: false, a: false, d: false };
+    let carSpeed = 0, carRotation = 0;
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x444444);
+        scene.fog = new THREE.Fog(0x444444, 10, 80);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshPhongMaterial({color: 0x222222}));
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(20, 50, 10);
+        scene.add(light);
+
+        // Buildings (City)
+        for(let i=0; i<40; i++) {
+            let h = 5 + Math.random()*15;
+            let b = new THREE.Mesh(new THREE.BoxGeometry(5, h, 5), new THREE.MeshPhongMaterial({color: 0x666666}));
+            b.position.set((Math.random()-0.5)*150, h/2, (Math.random()-0.5)*150);
+            scene.add(b);
+        }
+
+        // Mission Items (Secret Cases)
+        for(let i=0; i<5; i++) {
+            let item = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshPhongMaterial({color: 0x00ff00}));
+            item.position.set((Math.random()-0.5)*140, 0.5, (Math.random()-0.5)*140);
+            scene.add(item);
+            items.push(item);
+        }
+
+        // Car
+        car = new THREE.Group();
+        let body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 4), new THREE.MeshPhongMaterial({color: 0x00aaff}));
+        let roof = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.6, 2), new THREE.MeshPhongMaterial({color: 0x222222}));
+        roof.position.y = 0.7;
+        car.add(body, roof);
+        scene.add(car);
+
+        window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        animate();
+    }
+
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Car Physics
+        if(keys.w) carSpeed = THREE.MathUtils.lerp(carSpeed, 0.4, 0.05);
+        else if(keys.s) carSpeed = THREE.MathUtils.lerp(carSpeed, -0.2, 0.05);
+        else carSpeed = THREE.MathUtils.lerp(carSpeed, 0, 0.05);
+
+        if(Math.abs(carSpeed) > 0.01) {
+            if(keys.a) carRotation += 0.04;
+            if(keys.d) carRotation -= 0.04;
+        }
+
+        car.rotation.y = carRotation;
+        car.translateZ(-carSpeed);
+
+        // Camera follow
+        camera.position.x = car.position.x + Math.sin(car.rotation.y) * 10;
+        camera.position.z = car.position.z + Math.cos(car.rotation.y) * 10;
+        camera.position.y = 5;
+        camera.lookAt(car.position);
+
+        // Check Mission Items
+        items.forEach((item, index) => {
+            if(car.position.distanceTo(item.position) < 2) {
+                scene.remove(item);
+                items.splice(index, 1);
+                score++;
+                document.getElementById('score').innerText = score;
+                if(score >= 5) {
+                    gameActive = false;
+                    alert("MISSION COMPLETE: You found all secret cases!");
+                    location.reload();
+                }
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+    init();
+</script>
+</body>
+</html>

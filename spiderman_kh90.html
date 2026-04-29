@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Spider-Man Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial; }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: white; z-index: 10; font-size: 22px; font-weight: bold; text-shadow: 2px 2px red; pointer-events: none; }
+        #msg { position: absolute; bottom: 20px; width: 100%; text-align: center; color: #ccc; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    LOGOS: <span id="score">0</span> / 5 | MISSION: STAY ON BUILDINGS
+</div>
+<div id="msg">WASD to Move | SPACE to Jump/Swing</div>
+
+<script>
+    let scene, camera, renderer, spidey;
+    let logos = [], buildings = [];
+    let score = 0, gameActive = true;
+    let keys = { w: false, s: false, a: false, d: false, ' ': false };
+    let velocityY = 0;
+    const gravity = -0.01;
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000022); // Night Sky
+        scene.fog = new THREE.Fog(0x000022, 10, 60);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0x404040));
+        let light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 20, 10);
+        scene.add(light);
+
+        // Spider-Man (Red Box)
+        spidey = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.8), new THREE.MeshBasicMaterial({color: 0xff0000}));
+        spidey.position.set(0, 15, 0);
+        scene.add(spidey);
+
+        // Buildings
+        for(let i=0; i<30; i++) {
+            let h = 10 + Math.random() * 15;
+            let b = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), new THREE.MeshLambertMaterial({color: 0x222222}));
+            b.position.set((Math.random()-0.5)*100, h/2 - 5, (Math.random()-0.5)*100);
+            scene.add(b);
+            buildings.push(b);
+
+            // Add Logos on some buildings
+            if(i < 5) {
+                let logo = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                logo.position.set(b.position.x, h - 4, b.position.z);
+                scene.add(logo);
+                logos.push(logo);
+            }
+        }
+
+        window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        animate();
+    }
+
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Movement
+        if(keys.w) spidey.translateZ(-0.15);
+        if(keys.s) spidey.translateZ(0.15);
+        if(keys.a) spidey.rotation.y += 0.04;
+        if(keys.d) spidey.rotation.y -= 0.04;
+
+        // Gravity & Jump
+        if(keys[' '] && spidey.position.y <= 20) {
+            velocityY = 0.2;
+        }
+        spidey.position.y += velocityY;
+        velocityY += gravity;
+
+        // Building Collision (Simple height check)
+        let onBuilding = false;
+        buildings.forEach(b => {
+            let dx = Math.abs(spidey.position.x - b.position.x);
+            let dz = Math.abs(spidey.position.z - b.position.z);
+            let h = b.geometry.parameters.height - 5;
+            if(dx < 4 && dz < 4 && spidey.position.y >= h && spidey.position.y <= h + 1) {
+                spidey.position.y = h + 0.6;
+                velocityY = 0;
+                onBuilding = true;
+            }
+        });
+
+        // Fail Check (Falling)
+        if(spidey.position.y < -5) {
+            gameActive = false;
+            alert("Spider-Man ਹੇਠਾਂ ਗਿਰ ਗਿਆ! ਮਿਸ਼ਨ ਫੇਲ੍ਹ।");
+            location.reload();
+        }
+
+        // Collect Logos
+        logos.forEach((l, index) => {
+            if(spidey.position.distanceTo(l.position) < 1.5) {
+                scene.remove(l);
+                logos.splice(index, 1);
+                score++;
+                document.getElementById('score').innerText = score;
+                if(score >= 5) {
+                    gameActive = false;
+                    alert("BOOYAH! ਤੁਸੀਂ ਸਾਰੇ ਸਪਾਈਡਰ ਲੋਗੋ ਇਕੱਠੇ ਕਰ ਲਏ!");
+                    location.reload();
+                }
+            }
+        });
+
+        camera.position.x = spidey.position.x + Math.sin(spidey.rotation.y) * 10;
+        camera.position.z = spidey.position.z + Math.cos(spidey.rotation.y) * 10;
+        camera.position.y = spidey.position.y + 5;
+        camera.lookAt(spidey.position);
+
+        renderer.render(scene, camera);
+    }
+    init();
+</script>
+</body>
+</html>

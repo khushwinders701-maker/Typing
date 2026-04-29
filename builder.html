@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Minecraft Builder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: Arial; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; border: 2px solid #fff; pointer-events: none; }
+        .key-hint { color: #00ff00; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <h2>KH90 BUILDER MISSION</h2>
+    <p>ਮਿਸ਼ਨ: ਆਪਣਾ ਆਪਣਾ ਘਰ ਬਣਾਓ!</p>
+    <hr>
+    <p><span class="key-hint">WASD</span> - ਘੁੰਮਣ ਲਈ</p>
+    <p><span class="key-hint">1, 2, 3</span> - ਬਲਾਕ ਦਾ ਰੰਗ ਬਦਲੋ</p>
+    <p><span class="key-hint">SPACE</span> - ਬਲਾਕ ਰੱਖੋ (Place Block)</p>
+    <p><span class="key-hint">R</span> - ਰੀਸੈੱਟ (Reset)</p>
+</div>
+
+<script>
+    let scene, camera, renderer, marker;
+    let blocks = [];
+    let currentMaterial;
+    let materials = [
+        new THREE.MeshLambertMaterial({ color: 0x8B4513 }), // ਮਿੱਟੀ (Brown)
+        new THREE.MeshLambertMaterial({ color: 0x228B22 }), // ਘਾਹ (Green)
+        new THREE.MeshLambertMaterial({ color: 0x808080 }), // ਪੱਥਰ (Grey)
+        new THREE.MeshLambertMaterial({ color: 0xffffff })  // ਚਿੱਟਾ ਬਲਾਕ
+    ];
+    let matIndex = 0;
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // ਨੀਲਾ ਅਸਮਾਨ
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 10);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 20, 10);
+        scene.add(light, new THREE.AmbientLight(0x404040));
+
+        // Ground Grid
+        const grid = new THREE.GridHelper(20, 20, 0x000000, 0xffffff);
+        scene.add(grid);
+
+        // Placement Marker (ਜਿੱਥੇ ਬਲਾਕ ਰੱਖਿਆ ਜਾਵੇਗਾ)
+        const markerGeo = new THREE.BoxGeometry(1.01, 1.01, 1.01);
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+        marker = new THREE.Mesh(markerGeo, markerMat);
+        scene.add(marker);
+
+        currentMaterial = materials[0];
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            
+            // ਹਿੱਲਣ ਲਈ
+            if (key === 'w') marker.position.z -= 1;
+            if (key === 's') marker.position.z += 1;
+            if (key === 'a') marker.position.x -= 1;
+            if (key === 'd') marker.position.x += 1;
+            if (key === 'q') marker.position.y += 1;
+            if (key === 'e') marker.position.y -= 1;
+
+            // ਬਲਾਕ ਰੱਖਣ ਲਈ
+            if (key === ' ') {
+                const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), materials[matIndex]);
+                block.position.copy(marker.position);
+                scene.add(block);
+                blocks.push(block);
+            }
+
+            // ਰੰਗ ਬਦਲਣ ਲਈ
+            if (key === '1') matIndex = 0;
+            if (key === '2') matIndex = 1;
+            if (key === '3') matIndex = 2;
+            if (key === '4') matIndex = 3;
+
+            // ਰੀਸੈੱਟ
+            if (key === 'r') {
+                blocks.forEach(b => scene.remove(b));
+                blocks = [];
+            }
+            
+            // ਕੈਮਰਾ ਮਾਰਕਰ ਦੇ ਪਿੱਛੇ ਚੱਲੇਗਾ
+            camera.position.x = marker.position.x + 5;
+            camera.position.z = marker.position.z + 5;
+            camera.lookAt(marker.position);
+        });
+
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
+</body>
+</html>

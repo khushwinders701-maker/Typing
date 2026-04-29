@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KH90 Car - Keyboard Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        #container { width: 100vw; height: 100vh; }
+        .ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; pointer-events: none; z-index: 10; }
+        .box { background: rgba(0,255,200,0.2); padding: 10px 20px; border-radius: 10px; border: 2px solid #00ffcc; color: #00ffcc; font-weight: bold; font-size: 20px; text-shadow: 0 0 5px #00ffcc; }
+        #instructions { position: absolute; bottom: 20px; width: 100%; text-align: center; color: white; font-size: 16px; opacity: 0.6; }
+    </style>
+</head>
+<body>
+
+<div class="ui">
+    <div class="box">SCORE: <span id="score">0</span></div>
+    <div class="box">DISTANCE: <span id="dist">1000</span>m</div>
+</div>
+
+<div id="instructions">USE KEYBOARD: W / Up (GO) | S / Down (BACK) | A-D / Left-Right | SPACE (JUMP)</div>
+
+<div id="container"></div>
+
+<script>
+    let scene, camera, renderer, car, road;
+    let otherCars = [], buildings = [];
+    let score = 0, distance = 1000, gameActive = true;
+    
+    // Keyboard State
+    let keys = { w: false, s: false, a: false, d: false, space: false };
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a15);
+        scene.fog = new THREE.Fog(0x0a0a15, 10, 60);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0x404040));
+        let sun = new THREE.DirectionalLight(0xffffff, 1);
+        sun.position.set(5, 10, 5);
+        scene.add(sun);
+
+        // Road
+        road = new THREE.Mesh(new THREE.PlaneGeometry(15, 2000), new THREE.MeshPhongMaterial({ color: 0x111111 }));
+        road.rotation.x = -Math.PI / 2;
+        scene.add(road);
+
+        // Car
+        car = new THREE.Group();
+        let body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 2.5), new THREE.MeshPhongMaterial({ color: 0x00ffcc }));
+        car.add(body);
+        car.position.y = 0.3;
+        scene.add(car);
+
+        camera.position.set(0, 4, 8);
+
+        // Buildings
+        for(let i=0; i<30; i++) spawnBuilding(-i*15);
+
+        // Listeners
+        window.addEventListener('keydown', (e) => handleKey(e, true));
+        window.addEventListener('keyup', (e) => handleKey(e, false));
+
+        animate();
+    }
+
+    function handleKey(e, status) {
+        let k = e.key.toLowerCase();
+        if(k === 'w' || e.key === 'ArrowUp') keys.w = status;
+        if(k === 's' || e.key === 'ArrowDown') keys.s = status;
+        if(k === 'a' || e.key === 'ArrowLeft') keys.a = status;
+        if(k === 'd' || e.key === 'ArrowRight') keys.d = status;
+        if(e.key === ' ' && status && car.position.y <= 0.4) velY = 0.2; // Jump
+    }
+
+    function spawnBuilding(z) {
+        let h = 5 + Math.random() * 15;
+        let b = new THREE.Mesh(new THREE.BoxGeometry(5, h, 5), new THREE.MeshPhongMaterial({ color: 0x1e293b }));
+        b.position.set(Math.random() > 0.5 ? 10 : -10, h/2, z);
+        scene.add(b);
+        buildings.push(b);
+    }
+
+    let velY = 0;
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Movement Logic
+        if(keys.w) { car.position.z -= 0.3; distance -= 1; }
+        if(keys.s) { car.position.z += 0.2; distance += 1; }
+        if(keys.a) car.position.x -= 0.15;
+        if(keys.d) car.position.x += 0.15;
+
+        // Jump Physics
+        car.position.y += velY;
+        if(car.position.y > 0.3) velY -= 0.01;
+        else { car.position.y = 0.3; velY = 0; }
+
+        // Road and Camera follow
+        camera.position.z = car.position.z + 8;
+        camera.position.x = car.position.x * 0.5;
+        camera.lookAt(car.position);
+
+        // AI Cars
+        if(Math.random() < 0.02) {
+            let ai = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 2.5), new THREE.MeshPhongMaterial({ color: 0xff4757 }));
+            ai.position.set((Math.random()-0.5)*10, 0.3, car.position.z - 60);
+            scene.add(ai);
+            otherCars.push(ai);
+        }
+
+        otherCars.forEach((ai, i) => {
+            ai.position.z += 0.2;
+            if(car.position.distanceTo(ai.position) < 1.5) {
+                alert("CRASHED!"); location.reload();
+            }
+        });
+
+        // UI Update
+        document.getElementById('score').innerText = Math.abs(Math.floor(car.position.z/10));
+        document.getElementById('dist').innerText = distance;
+
+        if(distance <= 0) { alert("YOU REACHED THE SCHOOL!"); location.reload(); }
+
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
+</body>
+</html>

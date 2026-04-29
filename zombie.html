@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KH90 Zombie Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        #container { width: 100vw; height: 100vh; }
+        
+        /* UI Elements */
+        .overlay { position: absolute; padding: 15px; color: white; z-index: 10; pointer-events: none; }
+        .stats { top: 10px; left: 10px; background: rgba(255, 0, 0, 0.2); border: 2px solid red; border-radius: 5px; }
+        .mission-box { top: 10px; right: 10px; background: rgba(0, 255, 0, 0.1); border: 2px solid green; padding: 10px; }
+        
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; 
+            width: 20px; height: 20px; border: 2px solid #0f0; 
+            border-radius: 50%; transform: translate(-50%, -50%); 
+            z-index: 20; 
+        }
+
+        /* Win/Loss Screens */
+        #status-screen {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: white; display: none; z-index: 100;
+            background: rgba(0,0,0,0.9); padding: 50px; border: 5px solid gold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="status-screen">
+    <h1 id="status-text">MISSION COMPLETE!</h1>
+    <p>ਤੁਸੀਂ ਸ਼ਹਿਰ ਨੂੰ ਬਚਾ ਲਿਆ ਹੈ!</p>
+    <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">ਪਲੇ ਅਗੇਨ</button>
+</div>
+
+<div class="overlay stats">
+    KILLS: <span id="score">0</span> / 20<br>
+    HEALTH: <span id="hp">100</span>%
+</div>
+
+<div class="overlay mission-box">
+    MISSION: Eliminate 20 Zombies<br>
+    STATUS: <span id="mission-status" style="color:yellow;">ACTIVE</span>
+</div>
+
+<div id="crosshair"></div>
+<div id="container"></div>
+
+<script>
+    let scene, camera, renderer, gun;
+    let zombies = [], bullets = [];
+    let score = 0, hp = 100, gameActive = true;
+    let keys = { w: false, s: false, a: false, d: false };
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020205);
+        scene.fog = new THREE.Fog(0x020205, 5, 30);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Ground
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshPhongMaterial({color: 0x111111}));
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        scene.add(new THREE.AmbientLight(0x404040));
+        const spot = new THREE.PointLight(0xff0000, 1, 50);
+        camera.add(spot);
+
+        // Simple Gun Mesh
+        gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.8), new THREE.MeshPhongMaterial({color: 0x222}));
+        gun.position.set(0.3, -0.4, -0.5);
+        camera.add(gun);
+        scene.add(camera);
+
+        // Keyboard Controls
+        window.onkeydown = (e) => { 
+            let k = e.key.toLowerCase();
+            if(k === 'w' || e.key === 'ArrowUp') keys.w = true;
+            if(k === 's' || e.key === 'ArrowDown') keys.s = true;
+            if(k === 'a' || e.key === 'ArrowLeft') keys.a = true;
+            if(k === 'd' || e.key === 'ArrowRight') keys.d = true;
+            if(e.key === ' ') shoot(); 
+        };
+        window.onkeyup = (e) => { 
+            let k = e.key.toLowerCase();
+            if(k === 'w' || e.key === 'ArrowUp') keys.w = false;
+            if(k === 's' || e.key === 'ArrowDown') keys.s = false;
+            if(k === 'a' || e.key === 'ArrowLeft') keys.a = false;
+            if(k === 'd' || e.key === 'ArrowRight') keys.d = false;
+        };
+
+        animate();
+    }
+
+    function shoot() {
+        if(!gameActive) return;
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color: 0xffff00}));
+        b.position.copy(camera.position);
+        b.quaternion.copy(camera.quaternion);
+        scene.add(b);
+        bullets.push({ mesh: b, vel: new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion) });
+    }
+
+    function spawnZombie() {
+        if(Math.random() < 0.02 && zombies.length < 5) {
+            const z = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshPhongMaterial({color: 0x006600}));
+            // ਸਿਰਫ ਸਾਹਮਣੇ ਤੋਂ ਆਉਣਗੇ (Z ਪੁਜੀਸ਼ਨ -20 ਤੋਂ -30)
+            z.position.set((Math.random()-0.5)*15, 1, camera.position.z - 25);
+            scene.add(z);
+            zombies.push(z);
+        }
+    }
+
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Movement
+        if(keys.w) camera.position.z -= 0.1;
+        if(keys.s) camera.position.z += 0.1;
+        if(keys.a) camera.position.x -= 0.1;
+        if(keys.d) camera.position.x += 0.1;
+
+        spawnZombie();
+
+        // Bullets vs Zombies
+        bullets.forEach((b, bi) => {
+            b.mesh.position.add(b.vel);
+            zombies.forEach((z, zi) => {
+                if(b.mesh.position.distanceTo(z.position) < 1.2) {
+                    scene.remove(z); zombies.splice(zi, 1);
+                    scene.remove(b.mesh); bullets.splice(bi, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    if(score >= 20) winGame();
+                }
+            });
+        });
+
+        // Zombies attack player
+        zombies.forEach((z, zi) => {
+            z.position.z += 0.05; // ਸਾਹਮਣੇ ਤੋਂ ਤੁਹਾਡੇ ਵੱਲ ਆਉਣਾ
+            if(z.position.distanceTo(camera.position) < 1.5) {
+                hp -= 0.5;
+                document.getElementById('hp').innerText = Math.floor(hp);
+                if(hp <= 0) endGame();
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    function winGame() {
+        gameActive = false;
+        document.getElementById('status-screen').style.display = 'block';
+        document.getElementById('status-text').innerText = "MISSION ACCOMPLISHED!";
+        document.getElementById('mission-status').innerText = "CLEARED";
+        document.getElementById('mission-status').style.color = "lime";
+    }
+
+    function endGame() {
+        gameActive = false;
+        document.getElementById('status-screen').style.display = 'block';
+        document.getElementById('status-text').innerText = "MISSION FAILED!";
+        document.getElementById('status-text').style.color = "red";
+    }
+
+    init();
+</script>
+</body>
+</html>

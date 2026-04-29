@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 City Racer - Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; font-family: Arial, sans-serif; }
+        #ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; color: white; z-index: 10; pointer-events: none; }
+        .box { background: rgba(0,0,0,0.8); padding: 10px 20px; border: 2px solid #ffcc00; border-radius: 8px; font-size: 20px; font-weight: bold; }
+        #status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: #00ff00; padding: 40px; border: 4px solid #00ff00; text-align: center; display: none; z-index: 100; }
+    </style>
+</head>
+<body>
+
+<div id="status">
+    <h1 id="status-title">MISSION COMPLETE!</h1>
+    <p>ਤੁਸੀਂ ਸੁਰੱਖਿਅਤ ਮੰਜ਼ਿਲ 'ਤੇ ਪਹੁੰਚ ਗਏ ਹੋ!</p>
+    <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">ਦੁਬਾਰਾ ਖੇਡੋ</button>
+</div>
+
+<div id="ui">
+    <div class="box">DISTANCE: <span id="dist">1000</span>m</div>
+    <div class="box">SPEED: <span id="speed">0</span> km/h</div>
+</div>
+
+<script>
+    let scene, camera, renderer, car;
+    let traffic = [], trees = [];
+    let distance = 1000, speed = 0, gameActive = true;
+    let keys = { w: false, a: false, d: false };
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333333);
+        scene.fog = new THREE.Fog(0x333333, 10, 50);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const sun = new THREE.DirectionalLight(0xffffff, 1);
+        sun.position.set(5, 10, 5);
+        scene.add(sun, new THREE.AmbientLight(0x404040));
+
+        // Road
+        const roadGeo = new THREE.PlaneGeometry(15, 2000);
+        const roadMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const road = new THREE.Mesh(roadGeo, roadMat);
+        road.rotation.x = -Math.PI / 2;
+        scene.add(road);
+
+        // Player Car (Simple Box Design)
+        const carBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 3), new THREE.MeshPhongMaterial({ color: 0xff0000 }));
+        const carRoof = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 1.5), new THREE.MeshPhongMaterial({ color: 0xffffff }));
+        carRoof.position.set(0, 0.7, -0.2);
+        car = new THREE.Group();
+        car.add(carBody, carRoof);
+        car.position.y = 0.5;
+        scene.add(car);
+
+        camera.position.set(0, 4, 8);
+
+        window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        animate();
+    }
+
+    function spawnTraffic() {
+        if (Math.random() < 0.05 && traffic.length < 8) {
+            const tCar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 3), new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff }));
+            tCar.position.set((Math.random() - 0.5) * 12, 0.5, car.position.z - 60);
+            scene.add(tCar);
+            traffic.push(tCar);
+        }
+    }
+
+    function animate() {
+        if (!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Car Controls
+        if (keys.w) {
+            speed = THREE.MathUtils.lerp(speed, 0.5, 0.05);
+            distance -= 1;
+        } else {
+            speed = THREE.MathUtils.lerp(speed, 0, 0.02);
+        }
+
+        if (keys.a && car.position.x > -6) car.position.x -= 0.15;
+        if (keys.d && car.position.x < 6) car.position.x += 0.15;
+
+        car.position.z -= speed;
+        camera.position.z = car.position.z + 8;
+        camera.position.x = car.position.x * 0.5;
+        camera.lookAt(car.position);
+
+        spawnTraffic();
+
+        // Traffic & Collision
+        traffic.forEach((t, i) => {
+            t.position.z += 0.05; // Traffic moves slow
+            if (car.position.distanceTo(t.position) < 2) {
+                gameActive = false;
+                document.getElementById('status').style.display = 'block';
+                document.getElementById('status-title').innerText = "CRASHED!";
+                document.getElementById('status-title').style.color = "red";
+            }
+            if (t.position.z > car.position.z + 10) {
+                scene.remove(t);
+                traffic.splice(i, 1);
+            }
+        });
+
+        // UI Update
+        document.getElementById('dist').innerText = Math.max(0, distance);
+        document.getElementById('speed').innerText = Math.floor(speed * 300);
+
+        if (distance <= 0) {
+            gameActive = false;
+            document.getElementById('status').style.display = 'block';
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    init();
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Typing - Level Reset Timer</title>
+    <style>
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.2; }
+        .container { background: rgba(0, 15, 0, 0.9); border: 2px solid #0f0; border-radius: 10px; padding: 20px; width: 85%; max-width: 900px; text-align: center; box-shadow: 0 0 25px #0f0; }
+        #timer-box { font-size: 45px; color: #ff0000; font-weight: bold; margin-bottom: 10px; }
+        #word-display { font-size: 32px; min-height: 80px; margin-bottom: 15px; color: #fff; text-shadow: 0 0 8px #0f0; line-height: 1.3; }
+        textarea { background: #000; border: 1px solid #0f0; color: #0f0; font-size: 22px; padding: 12px; width: 90%; text-align: center; outline: none; resize: none; border-radius: 5px; }
+        .stats { display: flex; justify-content: space-around; width: 100%; margin-top: 15px; font-size: 18px; }
+        .urgent { animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        #game-over, #cert { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; align-items: center; justify-content: center; flex-direction: column; }
+        .box { border: 10px double #0f0; padding: 40px; background: #001100; text-align: center; }
+    </style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div id="game-over">
+    <div class="box" style="border-color: red; color: red;">
+        <h1>MISSION FAILED</h1>
+        <p>ਸਮਾਂ ਖਤਮ! ਅਗਲੇ ਲੈਵਲ ਤੱਕ ਪਹੁੰਚਣ ਲਈ ਤੇਜ਼ ਹੋਣਾ ਪਵੇਗਾ।</p>
+        <button onclick="location.reload()" style="background:red; color:white; padding:10px 20px; border:none; cursor:pointer;">RETRY</button>
+    </div>
+</div>
+
+<div class="container" id="game-ui">
+    <div id="timer-box">TIME: <span id="seconds">30</span>s</div>
+    <h2 style="margin:0; color:#0f0;">LEVEL: <span id="lvl">1</span> / 20</h2>
+    <div id="word-display">READY? START TYPING...</div>
+    <textarea id="input-field" rows="2" placeholder="Type exactly as shown..." autofocus></textarea>
+    
+    <div class="stats">
+        <div>PROGRESS: <span id="score">0</span> / 5</div>
+        <div>WPM: <span id="wpm">0</span></div>
+    </div>
+</div>
+
+<div id="cert">
+    <div class="box" style="color: gold;">
+        <h1>GRAND MASTER</h1>
+        <p style="color: #0f0;">KH90 STUDIO CERTIFIED PROFESSIONAL</p>
+        <hr color="#0f0">
+        <p>ਤੁਸੀਂ ਸਾਰੇ 20 ਲੈਵਲ ਸਮੇਂ ਦੇ ਅੰਦਰ ਪੂਰੇ ਕਰ ਲਏ ਹਨ!</p>
+        <button onclick="location.reload()" style="background:#0f0; border:none; padding:10px 20px; cursor:pointer;">RESTART HUB</button>
+    </div>
+</div>
+
+<script>
+    const data = {
+        1: ["a", "s", "d", "f", "j", "k", "l"],
+        2: ["cat", "dog", "key", "box", "run"],
+        3: ["hack", "code", "file", "data", "base"],
+        4: ["kh90", "html", "java", "blue", "fire"],
+        5: ["system", "matrix", "server", "update"],
+        6: ["hacker", "scripts", "encrypt", "monitor"],
+        7: ["kh90studio", "database", "security", "function"],
+        8: ["programming", "connection", "javascript", "interface"],
+        9: ["I am a hacker", "Code is life", "Stay secure"],
+        10: ["Welcome to KH90", "Typing is power", "Hello world"],
+        11: ["Cyber security is key", "Learn to code fast", "Smart TV coding"],
+        12: ["Always backup your data", "Never share your password", "Keep the system clean"],
+        13: ["The quick brown fox jumps over", "The lazy dog in the matrix world"],
+        14: ["Hacking is not a crime it is a skill", "Build your own future with code"],
+        15: ["KH90 Studio is creating the best 3D games", "Use your keyboard to win the mission"],
+        16: ["Success is the result of hard work and typing", "Level twenty is near stay focused now"],
+        17: ["Hacking involves a deep understanding of systems and code structure.", "Encryption is the process of converting data into secret code."],
+        18: ["A professional hacker must master the keyboard to bypass firewalls.", "Smart TV development requires optimized code for better performance."],
+        19: ["KH90 Studio presents the ultimate typing challenge for all programmers.", "The matrix is everywhere, it is all around us, even in this screen."],
+        20: ["Final Mission: You have mastered the 20 level typing challenge within the time limit. Your speed and accuracy have proven that you are a certified KH90 Studio Professional. Congratulations on this grand victory!"]
+    };
+
+    let level = 1, score = 0, startTime = null, totalChars = 0;
+    let timeLeft = 30, timerInterval = null;
+    
+    const wordDisplay = document.getElementById('word-display');
+    const inputField = document.getElementById('input-field');
+    const timerSpan = document.getElementById('seconds');
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        timeLeft = 30; // ਹਰ ਲੈਵਲ ਦੀ ਸ਼ੁਰੂਆਤ ਵਿੱਚ 30 ਸੈਕਿੰਡ
+        if(level > 16) timeLeft = 50; // ਪੈਰਾਗ੍ਰਾਫ ਵਾਲੇ ਲੈਵਲ ਲਈ 50 ਸੈਕਿੰਡ
+        
+        timerSpan.innerText = timeLeft;
+        
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerSpan.innerText = timeLeft;
+            
+            if(timeLeft <= 5) document.getElementById('timer-box').classList.add('urgent');
+            else document.getElementById('timer-box').classList.remove('urgent');
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('game-ui').style.display = 'none';
+                document.getElementById('game-over').style.display = 'flex';
+            }
+        }, 1000);
+    }
+
+    function loadNext() {
+        if (score >= 5) {
+            if (level < 20) {
+                level++;
+                score = 0;
+                document.getElementById('lvl').innerText = level;
+                if(level > 12) inputField.rows = 4;
+                resetTimer(); // ਲੈਵਲ ਬਦਲਦੇ ਹੀ ਟਾਈਮਰ ਫਿਰ ਤੋਂ 30 ਸੈਕਿੰਡ ਹੋ ਜਾਵੇਗਾ
+            } else {
+                clearInterval(timerInterval);
+                document.getElementById('cert').style.display = 'flex';
+                document.getElementById('game-ui').style.display = 'none';
+                return;
+            }
+        }
+        let pool = data[level];
+        wordDisplay.innerText = pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    inputField.addEventListener('input', () => {
+        if (!startTime) {
+            startTime = new Date();
+            resetTimer();
+        }
+        
+        if (inputField.value === wordDisplay.innerText) {
+            totalChars += wordDisplay.innerText.length;
+            score++;
+            document.getElementById('score').innerText = score;
+            inputField.value = '';
+            
+            let timeSec = (new Date() - startTime) / 1000;
+            let wpm = Math.round((totalChars / 5) / (timeSec / 60));
+            document.getElementById('wpm').innerText = wpm;
+            
+            loadNext();
+        }
+    });
+
+    // Matrix Background
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    const drops = Array(Math.floor(canvas.width/20)).fill(1);
+    function draw() {
+        ctx.fillStyle = "rgba(0,0,0,0.05)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "#0f0";
+        drops.forEach((y, i) => {
+            ctx.fillText(String.fromCharCode(Math.random()*128), i*20, y*20);
+            if(y*20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+        });
+    }
+    setInterval(draw, 40);
+    loadNext();
+</script>
+</body>
+</html>

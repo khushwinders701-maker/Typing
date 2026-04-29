@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KH90 Typing Master - Clear View</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
+        #container { width: 100vw; height: 100vh; }
+        .ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; pointer-events: none; z-index: 10; }
+        .box { background: rgba(0, 0, 0, 0.9); padding: 12px 25px; border-radius: 10px; border: 3px solid #00ff00; color: #00ff00; font-weight: bold; font-size: 26px; }
+    </style>
+</head>
+<body>
+
+<div class="ui">
+    <div class="box">SCORE: <span id="score">0</span></div>
+    <div class="box">LIVES: <span id="lives">5</span></div>
+</div>
+
+<div id="container"></div>
+
+<script>
+    let scene, camera, renderer;
+    let currentFruit = null;
+    let score = 0, lives = 5;
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1)); // ਪੂਰੀ ਰੋਸ਼ਨੀ
+
+        camera.position.z = 10;
+
+        window.onkeydown = (e) => {
+            let pressed = e.key.toUpperCase();
+            if(currentFruit && currentFruit.userData.letter === pressed) {
+                removeFruit(true);
+            }
+        };
+
+        animate();
+    }
+
+    // ਅੱਖਰ ਬਣਾਉਣ ਦਾ ਨਵਾਂ ਅਤੇ ਸਾਫ਼ ਤਰੀਕਾ
+    function createLetterSprite(text) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 256;
+        
+        // ਬੈਕਗਰਾਊਂਡ ਗੋਲਾ (ਲਾਲ)
+        ctx.fillStyle = "#ff2200"; 
+        ctx.beginPath();
+        ctx.arc(128, 128, 100, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 10;
+        ctx.stroke();
+        
+        // ਅੱਖਰ (ਸਫੇਦ ਅਤੇ ਬਹੁਤ ਵੱਡਾ)
+        ctx.fillStyle = "white";
+        ctx.font = "bold 160px Arial"; 
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, 128, 128);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(3, 3, 1); // ਅੱਖਰ ਦਾ ਸਾਈਜ਼ ਵੱਡਾ ਕੀਤਾ
+        return sprite;
+    }
+
+    function spawnFruit() {
+        if (currentFruit === null && lives > 0) {
+            const char = alphabet[Math.floor(Math.random() * alphabet.length)];
+            const fruit = createLetterSprite(char);
+            
+            fruit.position.set(0, -7, 0); 
+            fruit.userData = { 
+                letter: char, 
+                vY: 0.09 // ਬਹੁਤ ਸਲੋ ਸਪੀਡ
+            };
+
+            scene.add(fruit);
+            currentFruit = fruit;
+        }
+    }
+
+    function removeFruit(isCut) {
+        if (currentFruit) {
+            scene.remove(currentFruit);
+            currentFruit = null;
+            if (isCut) {
+                score += 10;
+                document.getElementById('score').innerText = score;
+            } else {
+                lives--;
+                document.getElementById('lives').innerText = lives;
+                if(lives <= 0) { alert("Game Over! Score: " + score); location.reload(); }
+            }
+        }
+    }
+
+    function animate() {
+        if(lives <= 0) return;
+        requestAnimationFrame(animate);
+
+        spawnFruit();
+
+        if (currentFruit) {
+            currentFruit.position.y += currentFruit.userData.vY;
+            currentFruit.userData.vY -= 0.0012; // ਹੌਲੀ ਗੁਰੂਤਾਕਰਸ਼ਣ
+
+            if(currentFruit.position.y < -8) {
+                removeFruit(false);
+            }
+        }
+
+        renderer.render(scene, camera);
+    }
+    init();
+</script>
+</body>
+</html>

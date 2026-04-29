@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Horror Fixed</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial; }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: red; z-index: 10; font-size: 20px; font-weight: bold; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    KEYS: <span id="score">0</span> / 3 | MISSION: FIND KEYS & AVOID RED BOX
+</div>
+
+<script>
+    let scene, camera, renderer, granny;
+    let keys = [];
+    let score = 0, gameActive = true;
+    let moveKeys = { w: false, s: false, a: false, d: false };
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.Fog(0x000000, 1, 15); // ਹਨੇਰਾ ਦਿਖਾਉਣ ਲਈ
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Light (ਤੁਹਾਡੇ ਹੱਥ ਵਿੱਚ ਟਾਰਚ)
+        let light = new THREE.PointLight(0xffffff, 1, 15);
+        camera.add(light);
+        scene.add(camera);
+
+        // Ground (Floor)
+        let ground = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshBasicMaterial({color: 0x111111}));
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Mission Keys (Yellow Boxes)
+        for(let i=0; i<3; i++) {
+            let key = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshBasicMaterial({color: 0xffff00}));
+            key.position.set((Math.random()-0.5)*30, 0.5, (Math.random()-0.5)*30);
+            scene.add(key);
+            keys.push(key);
+        }
+
+        // Granny (The Red Box Enemy)
+        granny = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial({color: 0xff0000}));
+        granny.position.set(10, 1, 10);
+        scene.add(granny);
+
+        window.onkeydown = (e) => moveKeys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => moveKeys[e.key.toLowerCase()] = false;
+
+        camera.position.set(0, 1.5, 0);
+        animate();
+    }
+
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Movement Controls
+        if(moveKeys.w) camera.translateZ(-0.1);
+        if(moveKeys.s) camera.translateZ(0.1);
+        if(moveKeys.a) camera.rotation.y += 0.04;
+        if(moveKeys.d) camera.rotation.y -= 0.04;
+
+        // Granny moves toward you
+        let direction = new THREE.Vector3().subVectors(camera.position, granny.position).normalize();
+        granny.position.x += direction.x * 0.03;
+        granny.position.z += direction.z * 0.03;
+
+        // Collect Keys
+        keys.forEach((k, index) => {
+            if(camera.position.distanceTo(k.position) < 1.5) {
+                scene.remove(k);
+                keys.splice(index, 1);
+                score++;
+                document.getElementById('score').innerText = score;
+                if(score >= 3) {
+                    gameActive = false;
+                    alert("BOOYAH! ਤੁਸੀਂ ਬਚ ਗਏ!");
+                    location.reload();
+                }
+            }
+        });
+
+        // Caught by Granny
+        if(camera.position.distanceTo(granny.position) < 1.2) {
+            gameActive = false;
+            alert("GRANNY ਨੇ ਤੁਹਾਨੂੰ ਫੜ ਲਿਆ!");
+            location.reload();
+        }
+
+        renderer.render(scene, camera);
+    }
+    init();
+</script>
+</body>
+</html>

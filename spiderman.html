@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KH90 Spider-Man Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial; }
+        .ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; color: white; z-index: 10; pointer-events: none; }
+        .box { background: rgba(255,0,0,0.5); padding: 10px; border: 2px solid white; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        <div class="box">DISTANCE: <span id="dist">2000</span>m</div>
+        <div class="box">MISSION: Reach the End</div>
+    </div>
+    <script>
+        let scene, camera, renderer, spider;
+        let keys = { w: false, a: false, s: false, d: false, space: false };
+        let distance = 2000, gameActive = true;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            spider = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({color: 0xff0000}));
+            scene.add(spider);
+            spider.position.y = 5;
+
+            // Buildings
+            for(let i=0; i<100; i++) {
+                let b = new THREE.Mesh(new THREE.BoxGeometry(3, 10 + Math.random()*15, 3), new THREE.MeshBasicMaterial({color: 0x222222}));
+                b.position.set((Math.random()-0.5)*20, 0, -i*20);
+                scene.add(b);
+            }
+
+            window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+            window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+            animate();
+        }
+
+        function animate() {
+            if(!gameActive) return;
+            requestAnimationFrame(animate);
+            
+            if(keys.w) { spider.position.z -= 0.3; distance -= 1; }
+            if(keys.s) { spider.position.z += 0.2; distance += 1; }
+            if(keys.a) spider.position.x -= 0.2;
+            if(keys.d) spider.position.x += 0.2;
+
+            // Gravity (ਡਿੱਗਣ ਦਾ ਡਰ)
+            if(keys.space) { 
+                spider.position.y += 0.2; // Swing/Jump
+            } else {
+                spider.position.y -= 0.05;
+            }
+
+            if(spider.position.y < -2) {
+                gameActive = false;
+                alert("MISSION FAILED: You fell!");
+                location.reload();
+            }
+
+            if(distance <= 0) {
+                gameActive = false;
+                alert("MISSION ACCOMPLISHED: Hero of KH90!");
+                location.reload();
+            }
+
+            document.getElementById('dist').innerText = Math.max(0, distance);
+            camera.position.set(spider.position.x, spider.position.y + 3, spider.position.z + 10);
+            camera.lookAt(spider.position);
+            renderer.render(scene, camera);
+        }
+        init();
+    </script>
+</body>
+</html>

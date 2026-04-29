@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KH90 Motu Patlu - Real Samosa Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: Arial; }
+        .score-ui { position: absolute; top: 20px; left: 20px; font-size: 30px; color: #ffcc00; font-weight: bold; text-shadow: 2px 2px black; z-index: 10; }
+        #msg { position: absolute; bottom: 20px; width: 100%; text-align: center; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="score-ui">SAMOSAS: <span id="score">0</span> / 20</div>
+    <div id="msg">USE A & D TO COLLECT SAMOSAS | AVOID RED BOXES</div>
+    <script>
+        let scene, camera, renderer, player;
+        let score = 0, lane = 0, gameActive = true;
+        let obstacles = [], samosas = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({antialias: true});
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Player (Motu)
+            player = new THREE.Mesh(
+                new THREE.SphereGeometry(0.7, 32, 32), 
+                new THREE.MeshPhongMaterial({color: 0xffcc00})
+            );
+            player.position.y = 0.7;
+            scene.add(player);
+
+            // Lighting
+            let light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(0, 10, 10);
+            scene.add(light, new THREE.AmbientLight(0x404040));
+
+            // Road
+            let road = new THREE.Mesh(
+                new THREE.PlaneGeometry(12, 5000), 
+                new THREE.MeshStandardMaterial({color: 0x333333})
+            );
+            road.rotation.x = -Math.PI/2;
+            scene.add(road);
+
+            camera.position.set(0, 5, 8);
+
+            // Keyboard
+            window.addEventListener('keydown', (e) => {
+                if(e.key === 'a' || e.key === 'ArrowLeft') if(lane > -1) lane--;
+                if(e.key === 'd' || e.key === 'ArrowRight') if(lane < 1) lane++;
+            });
+
+            animate();
+        }
+
+        // 3D ਸਮੋਸਾ ਬਣਾਉਣ ਲਈ ਫੰਕਸ਼ਨ (Cone Shape)
+        function spawnSamosa() {
+            if(Math.random() < 0.05) {
+                let samosaGeo = new THREE.ConeGeometry(0.5, 0.8, 3); // ਤਿਕੋਣਾ ਸਮੋਸਾ
+                let samosaMat = new THREE.MeshPhongMaterial({color: 0xffa500});
+                let samosa = new THREE.Mesh(samosaGeo, samosaMat);
+                
+                samosa.position.set((Math.floor(Math.random()*3)-1)*3, 0.5, player.position.z - 40);
+                samosa.rotation.x = Math.PI;
+                scene.add(samosa);
+                samosas.push(samosa);
+            }
+        }
+
+        function spawnObstacle() {
+            if(Math.random() < 0.02) {
+                let obs = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshPhongMaterial({color: 0xff0000}));
+                obs.position.set((Math.floor(Math.random()*3)-1)*3, 0.75, player.position.z - 60);
+                scene.add(obs);
+                obstacles.push(obs);
+            }
+        }
+
+        function animate() {
+            if(!gameActive) return;
+            requestAnimationFrame(animate);
+
+            player.position.z -= 0.15; // Speed
+            player.position.x = THREE.MathUtils.lerp(player.position.x, lane * 3, 0.1);
+            
+            spawnSamosa();
+            spawnObstacle();
+
+            // ਸਮੋਸੇ ਇਕੱਠੇ ਕਰਨ ਦੀ ਲੋਜਿਕ
+            samosas.forEach((s, i) => {
+                if(player.position.distanceTo(s.position) < 1.2) {
+                    scene.remove(s);
+                    samosas.splice(i, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    if(score >= 20) {
+                        gameActive = false;
+                        alert("MISSION COMPLETE: ਮੋਟੂ ਨੇ 20 ਸਮੋਸੇ ਖਾ ਲਏ!");
+                        location.reload();
+                    }
+                }
+            });
+
+            // ਰੁਕਾਵਟਾਂ ਨਾਲ ਟੱਕਰ
+            obstacles.forEach((obs, i) => {
+                if(player.position.distanceTo(obs.position) < 1.5) {
+                    gameActive = false;
+                    alert("GAME OVER: ਤੁਸੀਂ ਰੁਕਾਵਟ ਨਾਲ ਟਕਰਾ ਗਏ!");
+                    location.reload();
+                }
+            });
+
+            camera.position.z = player.position.z + 8;
+            camera.lookAt(player.position);
+            renderer.render(scene, camera);
+        }
+        init();
+    </script>
+</body>
+</html>

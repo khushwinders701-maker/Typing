@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+    <meta charset="UTF-8">
+    <title>KH90 Battleground Mission</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: Arial; }
+        #ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-around; color: #ffcc00; z-index: 10; pointer-events: none; }
+        .box { background: rgba(0, 0, 0, 0.7); padding: 10px 20px; border: 2px solid #ffcc00; border-radius: 5px; font-weight: bold; }
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
+            border: 2px solid lime; border-radius: 50%; transform: translate(-50%, -50%); 
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div class="box">TARGETS: <span id="score">0</span> / 10</div>
+    <div class="box">MISSION: SEARCH & DESTROY</div>
+</div>
+<div id="crosshair"></div>
+
+<script>
+    let scene, camera, renderer, player;
+    let enemies = [], bullets = [];
+    let score = 0, gameActive = true;
+    let keys = { w: false, s: false, a: false, d: false };
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x223322); // Grass color
+        scene.fog = new THREE.Fog(0x223322, 5, 50);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ground (Bermuda Grass)
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshPhongMaterial({color: 0x344e33}));
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const sun = new THREE.DirectionalLight(0xffffff, 1);
+        sun.position.set(10, 20, 10);
+        scene.add(sun);
+
+        // Buildings (Cover points)
+        for(let i=0; i<15; i++) {
+            let h = 5 + Math.random()*5;
+            let b = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshPhongMaterial({color: 0x777777}));
+            b.position.set((Math.random()-0.5)*80, h/2, (Math.random()-0.5)*80);
+            scene.add(b);
+        }
+
+        window.onkeydown = (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if(e.key === ' ' || e.key === 'f') shoot();
+        };
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        spawnEnemies();
+        animate();
+    }
+
+    function shoot() {
+        if(!gameActive) return;
+        let b = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0xffff00}));
+        b.position.copy(camera.position);
+        b.userData = { dir: new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion) };
+        scene.add(b);
+        bullets.push(b);
+    }
+
+    function spawnEnemies() {
+        for(let i=0; i<10; i++) {
+            let e = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshPhongMaterial({color: 0xff0000}));
+            e.position.set((Math.random()-0.5)*100, 1, (Math.random()-0.5)*100);
+            scene.add(e);
+            enemies.push(e);
+        }
+    }
+
+    function animate() {
+        if(!gameActive) return;
+        requestAnimationFrame(animate);
+
+        // Movement
+        if(keys.w) camera.translateZ(-0.2);
+        if(keys.s) camera.translateZ(0.2);
+        if(keys.a) camera.rotation.y += 0.03;
+        if(keys.d) camera.rotation.y -= 0.03;
+
+        // Bullet Logic
+        bullets.forEach((b, bi) => {
+            b.position.addScaledVector(b.userData.dir, 1);
+            enemies.forEach((e, ei) => {
+                if(b.position.distanceTo(e.position) < 1.5) {
+                    scene.remove(e); enemies.splice(ei, 1);
+                    scene.remove(b); bullets.splice(bi, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    if(score >= 10) {
+                        gameActive = false;
+                        alert("BOOYAH! ਮਿਸ਼ਨ ਪੂਰਾ ਹੋਇਆ!");
+                        location.reload();
+                    }
+                }
+            });
+        });
+
+        renderer.render(scene, camera);
+    }
+    init();
+</script>
+</body>
+</html>
